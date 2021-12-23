@@ -4,6 +4,8 @@
 
 **Hi, my name is Walker Griggs, and I reboot your servers.**
 
-[![pgp](https://img.shields.io/badge/pgp-0x3F59872EBAFDD222-d2c5b6)](https://github.com/walkergriggs.gpg)
-[![pgp](https://img.shields.io/badge/-walkergriggs.com-d2c5b6)](https://blog.walkergriggs.com)
+[![pgp](https://img.shields.io/badge/pgp-3F59872EBAFDD222-FCECD6)](https://github.com/walkergriggs.gpg)
+[![libera.chat](https://img.shields.io/badge/libera.chat-__rubik-FCECD6)](https://libera.chat)
+[![blog](https://img.shields.io/badge/blog-walkergriggs.com-FCECD6)](https://blog.walkergriggs.com)
+  
 </div>
