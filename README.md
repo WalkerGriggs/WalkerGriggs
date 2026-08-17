@@ -1,6 +1,6 @@
 
 <div align="center">
-<img width="1500" height="500" src="https://github.com/user-attachments/assets/5ec0b53a-81c2-4c30-bad8-59f18b1bbc27" />
+<img width="1500" height="500" src="https://github.com/user-attachments/assets/300f8fd7-9f6b-4ab5-8eff-c911780e9ee7" />
 
 [![pgp](https://img.shields.io/badge/pgp-3F59872EBAFDD222-000)](https://github.com/walkergriggs.gpg)
 [![www](https://img.shields.io/badge/www-walkergriggs.com-000)](https://blog.walkergriggs.com)
