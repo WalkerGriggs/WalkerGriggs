@@ -23,7 +23,6 @@ const Page = struct {
     date: []const u8 = "", // ISO 8601; dated pages are posts
     lastmod: []const u8 = "",
     image: []const u8 = "",
-    tags: []const []const u8 = &.{},
     html: []const u8 = "",
     noindex: bool = false,
 };
@@ -70,7 +69,6 @@ const Gen = struct {
         , .{ attr(title), attr(p.description), site.title, attr(abs), site.title, site.title, if (post) "article" else "website", attr(p.title), attr(p.description), attr(abs), if (p.image.len > 0) "summary_large_image" else "summary", site.twitter });
         if (p.image.len > 0) try w.print("<meta property=\"og:image\" content=\"{s}{f}\">\n", .{ if (p.image[0] == '/') site.url else "", attr(p.image) });
         if (post) try w.print("<meta property=\"article:published_time\" content=\"{f}\">\n<meta property=\"article:modified_time\" content=\"{f}\">\n", .{ attr(p.date), attr(p.lastmod) });
-        for (p.tags) |t| try w.print("<meta property=\"article:tag\" content=\"{f}\">\n", .{attr(t)});
         if (p.noindex) try w.writeAll("<meta name=\"robots\" content=\"noindex\">\n");
         try w.print("<script type=\"application/ld+json\">{f}</script>\n", .{std.json.fmt(.{
             .@"@context" = "https://schema.org",
@@ -80,7 +78,6 @@ const Gen = struct {
             .url = abs,
             .datePublished = @as(?[]const u8, if (post) p.date else null),
             .dateModified = @as(?[]const u8, if (post) p.lastmod else null),
-            .keywords = p.tags,
             .author = .{ .@"@type" = "Person", .name = site.title, .url = site.url, .sameAs = site.same_as },
         }, .{ .emit_null_optional_fields = false })});
         try w.print(
@@ -91,7 +88,7 @@ const Gen = struct {
         , .{ css, site.title });
         for (g.nav) |n| try w.print("<a href=\"{f}\">{f}</a>", .{ attr(n.url), attr(n.title) });
         try w.print(
-            \\<a href="/tags/">Tags</a></nav></header>
+            \\</nav></header>
             \\<main>
             \\{s}</main>
             \\<footer class="footer"><p>© {s} · <a rel="me" href="{s}">GitHub</a> · <a rel="me" href="{s}">X</a> · <a href="/index.xml">Feed</a></p></footer>
@@ -102,24 +99,6 @@ const Gen = struct {
         if (!p.noindex) try g.indexed.append(g.arena, p);
         const path = if (std.mem.endsWith(u8, p.url, "/")) try std.fmt.allocPrint(g.arena, "{s}index.html", .{p.url[1..]}) else p.url[1..];
         try g.write(path, buf.written());
-    }
-
-    /// A titled archive of posts grouped by year (home and tag pages).
-    fn archive(g: *Gen, p: Page, intro: []const u8, posts: []const Page) !void {
-        var buf: Io.Writer.Allocating = .init(g.arena);
-        const w = &buf.writer;
-        try w.print("<article>\n<h1>{f}</h1>\n<section>\n{s}", .{ attr(p.title), intro });
-        var year: []const u8 = "";
-        for (posts) |post| {
-            if (!std.mem.eql(u8, year, post.date[0..4])) {
-                if (year.len > 0) try w.writeAll("</ul>\n");
-                year = post.date[0..4];
-                try w.print("<h2>{s}</h2>\n<ul class=\"posts\">\n", .{year});
-            }
-            try w.print("<li><a href=\"{f}\">{f}</a> <time datetime=\"{f}\">{s}</time></li>\n", .{ attr(post.url), attr(post.title), attr(post.date), try human(g.arena, post.date) });
-        }
-        try w.writeAll(if (year.len > 0) "</ul>\n</section>\n</article>\n" else "</section>\n</article>\n");
-        try g.page(p, buf.written());
     }
 };
 
@@ -159,17 +138,10 @@ pub fn main(init: std.process.Init) !void {
     var posts: std.ArrayList(Page) = .empty;
     var nav: std.ArrayList(Page) = .empty;
     var home: Page = .{ .title = site.title, .url = "/" };
-    var tags: std.StringArrayHashMapUnmanaged(std.ArrayList(Page)) = .empty;
     for (pages.items) |p| {
         if (std.mem.eql(u8, p.url, "/")) {
             home = .{ .title = site.title, .url = "/", .description = p.description, .html = p.html };
-        } else if (p.date.len >= 10) {
-            try posts.append(arena, p);
-            for (p.tags) |t| {
-                const entry = try tags.getOrPutValue(arena, t, .empty);
-                try entry.value_ptr.append(arena, p);
-            }
-        } else try nav.append(arena, p);
+        } else if (p.date.len >= 10) try posts.append(arena, p) else try nav.append(arena, p);
     }
     g.nav = nav.items;
 
@@ -178,24 +150,24 @@ pub fn main(init: std.process.Init) !void {
         const w = &buf.writer;
         try w.print("<article>\n<h1>{f}</h1>\n", .{attr(p.title)});
         if (p.date.len >= 10) try w.print("<p class=\"subtitle\"><time datetime=\"{f}\">{s}</time></p>\n", .{ attr(p.date), try human(arena, p.date) });
-        try w.print("<section>\n{s}</section>\n", .{p.html});
-        if (p.tags.len > 0) try w.writeAll("<footer class=\"tags\">");
-        for (p.tags) |t| try w.print("<a class=\"badge badge-outline\" rel=\"tag\" href=\"/tags/{s}/\">{f}</a>", .{ try md.slug(arena, t), attr(t) });
-        try w.writeAll(if (p.tags.len > 0) "</footer>\n</article>\n" else "</article>\n");
+        try w.print("<section>\n{s}</section>\n</article>\n", .{p.html});
         try g.page(p, buf.written());
     };
-    try g.archive(home, home.html, posts.items);
 
-    var tag_index: Io.Writer.Allocating = .init(arena);
-    try tag_index.writer.writeAll("<ul class=\"posts\">\n");
-    for (tags.keys(), tags.values()) |t, list| {
-        const url = try std.fmt.allocPrint(arena, "/tags/{s}/", .{try md.slug(arena, t)});
-        const desc = try std.fmt.allocPrint(arena, "Posts tagged “{s}” by {s}.", .{ t, site.title });
-        try g.archive(.{ .title = try std.fmt.allocPrint(arena, "Tagged “{s}”", .{t}), .url = url, .description = desc }, "", list.items);
-        try tag_index.writer.print("<li><a href=\"{s}\">{f}</a> <span>{d}</span></li>\n", .{ url, attr(t), list.items.len });
+    // Home: the `_index.md` intro, then every post grouped by year.
+    var index: Io.Writer.Allocating = .init(arena);
+    try index.writer.print("<article>\n<h1>{s}</h1>\n<section>\n{s}", .{ site.title, home.html });
+    var year: []const u8 = "";
+    for (posts.items) |p| {
+        if (!std.mem.eql(u8, year, p.date[0..4])) {
+            if (year.len > 0) try index.writer.writeAll("</ul>\n");
+            year = p.date[0..4];
+            try index.writer.print("<h2>{s}</h2>\n<ul class=\"posts\">\n", .{year});
+        }
+        try index.writer.print("<li><a href=\"{f}\">{f}</a> <time datetime=\"{f}\">{s}</time></li>\n", .{ attr(p.url), attr(p.title), attr(p.date), try human(arena, p.date) });
     }
-    try tag_index.writer.writeAll("</ul>\n");
-    try g.archive(.{ .title = "Tags", .url = "/tags/", .description = "Every topic on " ++ site.title ++ "." }, tag_index.written(), &.{});
+    try index.writer.writeAll(if (year.len > 0) "</ul>\n</section>\n</article>\n" else "</section>\n</article>\n");
+    try g.page(home, index.written());
     try g.page(.{ .title = "Page not found", .url = "/404.html", .noindex = true }, "<article>\n<h1>Page not found</h1>\n<section>\n<p>That page doesn’t exist. Try the <a href=\"/\">archive</a>.</p>\n</section>\n</article>\n");
 
     // Atom feed at Hugo's `/index.xml`, plus sitemap and robots.txt.
@@ -227,26 +199,16 @@ pub fn main(init: std.process.Init) !void {
     try g.write("robots.txt", "User-agent: *\nAllow: /\nSitemap: " ++ site.url ++ "/sitemap.xml\n");
 }
 
-/// Front matter (`---` YAML subset: `key: value`, `[a, b]` and `- item` lists) + Markdown → Page.
+/// Front matter (`---` with one `key: value` per line) + Markdown → Page.
 /// Returns null for drafts.
 fn parse(arena: std.mem.Allocator, key: []const u8, src: []const u8) !?Page {
     var meta: std.StringHashMapUnmanaged([]const u8) = .empty;
     var body = src;
     if (std.mem.startsWith(u8, src, "---")) if (std.mem.indexOf(u8, src[3..], "\n---")) |end| {
         body = src[3 + end + 4 ..];
-        var last: []const u8 = "";
         var lines = std.mem.splitScalar(u8, src[3 .. 3 + end], '\n');
-        while (lines.next()) |raw| {
-            const line = std.mem.trimEnd(u8, raw, " \r");
-            const t = std.mem.trim(u8, line, " ");
-            if (std.mem.startsWith(u8, t, "- ")) { // a list item continues the previous key
-                const prev = meta.get(last) orelse "";
-                try meta.put(arena, last, try std.fmt.allocPrint(arena, "{s}{s}{s}", .{ prev, if (prev.len > 0) "," else "", t[2..] }));
-            } else if (std.mem.indexOfScalar(u8, line, ':')) |c| {
-                last = std.mem.trim(u8, line[0..c], " ");
-                try meta.put(arena, last, unquote(line[c + 1 ..]));
-            }
-        }
+        while (lines.next()) |line| if (std.mem.indexOfScalar(u8, line, ':')) |c|
+            try meta.put(arena, std.mem.trim(u8, line[0..c], " "), std.mem.trim(u8, line[c + 1 ..], " \t\r\"'"));
     };
     if (std.mem.eql(u8, meta.get("draft") orelse "", "true")) return null;
 
@@ -260,27 +222,15 @@ fn parse(arena: std.mem.Allocator, key: []const u8, src: []const u8) !?Page {
         try std.fmt.allocPrint(arena, "/{s}/{s}/{s}/{s}/", .{ date[0..4], date[5..7], date[8..10], meta.get("slug") orelse std.fs.path.basename(base) })
     else if (base.len == 0) "/" else try std.fmt.allocPrint(arena, "/{s}/", .{base});
     if (!std.mem.endsWith(u8, url, "/") and std.fs.path.extension(url).len == 0) url = try std.fmt.allocPrint(arena, "{s}/", .{url});
-
-    var tags: std.ArrayList([]const u8) = .empty;
-    var it = std.mem.tokenizeAny(u8, meta.get("tags") orelse "", "[],");
-    while (it.next()) |t| if (unquote(t).len > 0) try tags.append(arena, unquote(t));
-
-    const doc = try md.render(arena, body);
-    const summary = if (doc.excerpt.len <= 160) doc.excerpt else try std.fmt.allocPrint(arena, "{s}…", .{doc.excerpt[0 .. std.mem.lastIndexOfScalar(u8, doc.excerpt[0..157], ' ') orelse 157]});
     return .{
         .title = meta.get("title") orelse stem,
         .url = url,
-        .description = meta.get("description") orelse meta.get("summary") orelse if (summary.len > 0) summary else site.description,
+        .description = meta.get("description") orelse site.description,
         .date = date,
         .lastmod = meta.get("lastmod") orelse date,
         .image = meta.get("image") orelse "",
-        .tags = tags.items,
-        .html = doc.html,
+        .html = try md.render(arena, body),
     };
-}
-
-fn unquote(s: []const u8) []const u8 {
-    return std.mem.trim(u8, s, " \t\"'");
 }
 
 /// `2024-10-16…` → `October 16, 2024`.

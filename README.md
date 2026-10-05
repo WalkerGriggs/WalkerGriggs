@@ -11,7 +11,7 @@
 
 A small static site generator, written in Zig, that builds [walkergriggs.com](https://walkergriggs.com) from a directory of Markdown files.
 
-- **Small.** About 400 lines of Zig. Markdown parsing is handled by [md4c](https://github.com/mity/md4c), a C library that Zig compiles itself, so there's nothing extra to install.
+- **Small.** About 300 lines of Zig. Markdown parsing is handled by [md4c](https://github.com/mity/md4c), a C library that Zig compiles itself, so there's nothing extra to install.
 - **Tufte layout.** A main text column with a side column for sidenotes and margin notes. Typography comes from [tufte-css](https://github.com/edwardtufte/tufte-css), and the navbar, badges and footer come from [daisyUI](https://daisyui.com).
 - **Light pages.** All CSS is inlined and the site uses system fonts. There are no web fonts, no JavaScript and no third-party requests. The homepage is about 11 KB uncompressed (about 4 KB gzipped).
 - **SEO built in.** Every page gets a canonical URL, description, Open Graph and Twitter tags, and JSON-LD. The site also gets an Atom feed, `sitemap.xml` and `robots.txt`.
@@ -71,7 +71,7 @@ build.zig            build, run, and test steps
 build.zig.zon        package manifest (requires Zig 0.16.0)
 src/
   main.zig           reads content, parses front matter, writes pages, feed, sitemap, robots.txt
-  markdown.zig       Markdown → HTML via md4c; turns footnotes into Tufte sidenotes and adds heading anchors
+  markdown.zig       Markdown → HTML via md4c; turns footnotes into Tufte sidenotes
   site.css           site-specific styles; maps daisyUI's colors onto Tufte's palette
   vendor/
     tufte.css        tufte-css 1.9.0 with the ET Book @font-face rules removed
@@ -91,7 +91,7 @@ Images are published exactly as you provide them; the generator doesn't resize o
 
 ### Front matter
 
-Each Markdown file can start with YAML front matter between `---` lines. Only a subset of YAML is supported: `key: value` pairs, inline lists (`[a, b]`), and `- item` lists.
+Each Markdown file can start with YAML-style front matter between `---` lines. Only one `key: value` pair per line is supported; surrounding quotes are removed.
 
 ```markdown
 ---
@@ -99,7 +99,6 @@ title: "PSSH: the primordial soup of secure-ish headers"
 date: 2024-10-16
 lastmod: 2024-11-02T09:30:00-04:00
 description: What's actually inside a PSSH box, and why every DRM system reads it differently.
-tags: [video, drm]
 image: /images/pssh-card.png
 ---
 Your post starts here.
@@ -108,13 +107,11 @@ Your post starts here.
 | Key | Default | Purpose |
 | --- | --- | --- |
 | `title` | file name | Page title, `<h1>`, and the title used in the feed and in social previews. |
-| `date` | none | `YYYY-MM-DD` or full ISO 8601. **A page with a date is a post.** Posts get a dated URL and appear on the homepage, in tag pages, and in the feed. |
+| `date` | none | `YYYY-MM-DD` or full ISO 8601. **A page with a date is a post.** Posts get a dated URL and appear on the homepage and in the feed. |
 | `lastmod` | `date` | Last-modified date for the feed, sitemap, and JSON-LD. |
-| `description` | `summary`, then the first paragraph | Meta and social description. Write one per post; the fallback is cut at about 160 characters. |
-| `summary` | none | Used if `description` is missing. |
+| `description` | the site description | Meta and social description. **Write one for every page**; nothing is derived from the body. Aim for under 160 characters. |
 | `slug` | file name | The last part of a post's URL. |
 | `url` | see below | Sets the page's path exactly. Use it to keep a legacy URL. |
-| `tags` | none | Builds tag pages at `/tags/<tag>/` and adds `article:tag` meta tags. |
 | `image` | none | Social preview image (`og:image`). Paths starting with `/` are made absolute. |
 | `draft` | `false` | `draft: true` skips the file entirely. |
 
@@ -132,7 +129,7 @@ Each page's path is chosen by the first rule that applies:
 
 ### Navigation
 
-Every undated page except the homepage appears in the navbar, sorted by URL. A **Tags** link is always added.
+Every undated page except the homepage appears in the navbar, sorted by URL.
 
 ## Markdown reference
 
@@ -146,10 +143,10 @@ Markdown is parsed by [md4c](https://github.com/mity/md4c), which follows the [C
 | Bare URL autolinks | `https://…` without angle brackets |
 | Sidenotes | footnote syntax; see below |
 
+**Start section headings at `##`.** The page title is rendered as the page's only `<h1>`, and a `#` in content would add a second one.
+
 The generator also changes md4c's output in a few ways:
 
-- **`#` becomes `<h2>`**, because the page title is the only `<h1>`. Deeper levels keep their level.
-- **Every heading gets an `id`** for anchor links, made from its text (`## Code blocks` → `id="code-blocks"`). Repeated headings get `-2`, `-3` and so on.
 - **Images get `loading="lazy"`**, including images in raw HTML, so don't add it yourself. Always write alt text.
 - Fenced code blocks get a `language-*` class (from ```` ```zig ````) if you want to add a highlighter.
 
@@ -188,8 +185,6 @@ Use raw HTML for anything tufte-css supports that Markdown doesn't, such as full
 | `/index.html` | The homepage intro, then posts grouped by year, newest first |
 | `/YYYY/MM/DD/<slug>/index.html` | Each post |
 | `/<page>/index.html` | Each undated page |
-| `/tags/index.html` | All tags, with post counts |
-| `/tags/<tag>/index.html` | Posts with that tag |
 | `/index.xml` | Atom feed of the 20 newest posts, with full content (Hugo's feed path) |
 | `/sitemap.xml` | Every indexable page, with `lastmod` |
 | `/robots.txt` | Allows all crawlers and points to the sitemap |
@@ -201,9 +196,9 @@ Every page includes:
 
 - A unique `<title>` (`Post title · Walker Griggs`) and a `<meta name="description">`.
 - `<link rel="canonical">` with the absolute URL.
-- Open Graph (`og:*`) and Twitter Card tags. Posts also get `article:published_time`, `article:modified_time` and `article:tag`.
+- Open Graph (`og:*`) and Twitter Card tags. Posts also get `article:published_time` and `article:modified_time`.
 - JSON-LD: `BlogPosting` for posts and `WebSite` for other pages, with a `Person` author that links to your GitHub and X profiles.
-- Semantic HTML: `<article>`, `<section>`, `<time datetime>`, a single `<h1>`, `lang="en"`, heading anchors, and `rel="me"` and `rel="tag"` links.
+- Semantic HTML: `<article>`, `<section>`, `<time datetime>`, a single `<h1>`, `lang="en"` and `rel="me"` links.
 - A link to the Atom feed.
 
 Because there are no blocking requests, web fonts or scripts, Core Web Vitals scores should be close to the maximum.
@@ -211,8 +206,8 @@ Because there are no blocking requests, web fonts or scripts, Core Web Vitals sc
 ## Styling
 
 - **`src/vendor/tufte.css`** provides the typography and grid: a 55% text column, sidenotes floated into the side column, and the mobile toggles. Its ET Book `@font-face` rules were removed, and text uses a system old-style serif instead: Iowan Old Style on Apple devices, Palatino Linotype on Windows, and URW Palladio or P052 on Linux.
-- **`src/vendor/daisyui.css`** contains only the daisyUI rules the site uses: the light theme tokens, `navbar`, `badge`, `badge-outline` and `footer`. If you use another daisyUI class, copy its rules in from the `daisyui` npm package (`components/<name>.css`).
-- **`src/site.css`** maps daisyUI's colors to Tufte's palette (`#fffff8` and `#111`, or `#151515` and `#ddd` in dark mode) and lays out the navbar, post lists, tags and footer.
+- **`src/vendor/daisyui.css`** contains only the daisyUI rules the site uses: the light theme tokens, `navbar` and `footer`. If you use another daisyUI class, copy its rules in from the `daisyui` npm package (`components/<name>.css`).
+- **`src/site.css`** maps daisyUI's colors to Tufte's palette (`#fffff8` and `#111`, or `#151515` and `#ddd` in dark mode) and lays out the navbar, post lists and footer.
 - Dark mode follows the operating system setting (`prefers-color-scheme`).
 
 All three files are compiled into the binary with `@embedFile` and inlined into every page. After editing any of them, run `zig build run` again.
@@ -252,10 +247,12 @@ Once the site is live, submit `https://walkergriggs.com/sitemap.xml` in Google S
 
 ## Migrating from Hugo
 
-Most Hugo content works unchanged: YAML front matter, `date`, `slug`, `url`, `tags`, `draft`, `_index.md`, the `/index.xml` feed path and the `/tags/<tag>/` paths are all supported. Differences:
+Most Hugo content works unchanged: YAML front matter, `date`, `slug`, `url`, `draft`, `_index.md` and the `/index.xml` feed path are all supported. Differences:
 
 - **Shortcodes are not executed.** They appear as literal text. Convert `sidenote` and `marginnote` shortcodes to footnotes with the script below, then find any others with `grep -rhoE '\{\{[<%] *[a-z]+' content | sort | uniq -c`.
 - **TOML front matter (`+++`) is not supported.** Convert it to YAML.
+- **Tags, `summary` and multi-line YAML lists are ignored.** There are no tag pages, so old `/tags/…` URLs will return 404. Write a `description` for each post.
+- **`#` headings render as a second `<h1>`.** Change them to `##`.
 - **Files in `static/` are not moved to the site root.** Move them into `content/` at the path you want them served from.
 
 <details>

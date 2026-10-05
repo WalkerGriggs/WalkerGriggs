@@ -4,20 +4,14 @@ date: 2026-10-05
 lastmod: 2026-10-05T12:00:00Z
 description: Every Markdown feature the generator supports, rendered in Tufte style with sidenotes, margin notes, images, lists, and code.
 image: /images/landscape.svg
-tags:
-  - meta
-  - markdown
-  - tufte
 ---
-This post exercises every feature of the generator. The opening paragraph doubles as the page's meta description when `description` is missing from front matter, so keep it meaningful.[^intro]
+This post exercises every feature of the generator. Its search and social description comes from the `description` front matter, so every post should have one.[^intro]
 
 [^intro]: Sidenotes are written as ordinary Markdown footnotes. They render in the right-hand margin and collapse behind a toggle on small screens.
 
-# Heading level one
-
-A level-one heading in content renders as an `<h2>`, because the post title is the page's only `<h1>`.
-
 ## Heading level two
+
+Section headings start at `##`. The post title is the page's only `<h1>`, so don't use `#` in content.
 
 ### Heading level three
 
@@ -55,7 +49,7 @@ An unordered list:
 
 - Markdown content with YAML front matter
 - Tufte CSS for typography and the margin column
-- daisyUI for components such as the tag badges below
+- daisyUI for components such as the navbar and footer
   - Lists can nest, and items can hold `code`, **formatting**, and [links](https://commonmark.org)
   - ~~Strikethrough~~ and task lists work too:
     - [x] Parse Markdown with md4c
