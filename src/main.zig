@@ -12,6 +12,8 @@ const site = .{
     .twitter = "@WalkerGriggs",
     .same_as = [_][]const u8{ "https://github.com/WalkerGriggs", "https://x.com/WalkerGriggs" },
 };
+/// All CSS is inlined: no render-blocking requests and no web fonts (system serif).
+const css = @embedFile("vendor/tufte.css") ++ @embedFile("vendor/daisyui.css") ++ @embedFile("site.css");
 const months = [_][]const u8{ "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
 
 const Page = struct {
@@ -82,14 +84,11 @@ const Gen = struct {
             .author = .{ .@"@type" = "Person", .name = site.title, .url = site.url, .sameAs = site.same_as },
         }, .{ .emit_null_optional_fields = false })});
         try w.print(
-            \\<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-            \\<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tufte-css@1.9.0/tufte.min.css" integrity="sha384-Unq5KW28ad1eDFy7/pDgACNgonWWhdG3sAtKrqnhYJKZQ0whjkfn59wmTUNGGtF0" crossorigin="anonymous">
-            \\<link rel="stylesheet" href="https://cdn.jsdelivr.net/combine/npm/daisyui@5.7.47/theme/light.css,npm/daisyui@5.7.47/components/navbar.css,npm/daisyui@5.7.47/components/badge.css,npm/daisyui@5.7.47/components/footer.css">
             \\<style>{s}</style>
             \\</head>
             \\<body>
             \\<header class="navbar"><a class="site-title" href="/">{s}</a><nav aria-label="Main">
-        , .{ @embedFile("site.css"), site.title });
+        , .{ css, site.title });
         for (g.nav) |n| try w.print("<a href=\"{f}\">{f}</a>", .{ attr(n.url), attr(n.title) });
         try w.print(
             \\<a href="/tags/">Tags</a></nav></header>
