@@ -55,8 +55,11 @@ An unordered list:
 
 - Markdown content with YAML front matter
 - Tufte CSS for typography and the margin column
-* daisyUI for components such as the tag badges below
-+ Any of `-`, `*`, or `+` starts an item
+- daisyUI for components such as the tag badges below
+  - Lists can nest, and items can hold `code`, **formatting**, and [links](https://commonmark.org)
+  - ~~Strikethrough~~ and task lists work too:
+    - [x] Parse Markdown with md4c
+    - [ ] Write the next post
 
 An ordered list:
 
@@ -64,6 +67,13 @@ An ordered list:
 2. Parse front matter and render Markdown
 3. Write HTML, the feed, the sitemap, and `robots.txt`
 10. Numbers don't need to be sequential
+
+## Tables
+
+| Step | Lines | Notes |
+| :--- | ---: | :---: |
+| Markdown | ~60 | md4c does the parsing |
+| Layout | 72 | Head, nav, footer |
 
 ## Blockquotes
 
@@ -98,7 +108,7 @@ A fence without a language:
 Blocks that start with a tag pass through untouched, which is handy for Tufte's full-width figures:
 
 <figure class="fullwidth">
-  <img src="/images/landscape.svg" alt="A full-width landscape figure" loading="lazy">
+  <img src="/images/landscape.svg" alt="A full-width landscape figure">
 </figure>
 
 ---

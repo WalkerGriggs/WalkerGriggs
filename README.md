@@ -11,7 +11,7 @@
 
 A small static site generator, written in Zig, that builds [walkergriggs.com](https://walkergriggs.com) from a directory of Markdown files.
 
-- **Small.** About 560 lines of Zig and no dependencies beyond the standard library.
+- **Small.** About 400 lines of Zig. Markdown parsing is handled by [md4c](https://github.com/mity/md4c), a C library that Zig compiles itself, so there's nothing extra to install.
 - **Tufte layout.** A main text column with a side column for sidenotes and margin notes. Typography comes from [tufte-css](https://github.com/edwardtufte/tufte-css), and the navbar, badges and footer come from [daisyUI](https://daisyui.com).
 - **Light pages.** All CSS is inlined and the site uses system fonts. There are no web fonts, no JavaScript and no third-party requests. The homepage is about 11 KB uncompressed (about 4 KB gzipped).
 - **SEO built in.** Every page gets a canonical URL, description, Open Graph and Twitter tags, and JSON-LD. The site also gets an Atom feed, `sitemap.xml` and `robots.txt`.
@@ -35,7 +35,7 @@ A small static site generator, written in Zig, that builds [walkergriggs.com](ht
 
 ## Quick start
 
-You need **Zig 0.16.0**. The generator uses the new `std.Io` APIs, so older versions won't compile it.
+You need **Zig 0.16.0**. The generator uses the new `std.Io` APIs, so older versions won't compile it. The first build downloads md4c v0.6.0 (pinned by hash in `build.zig.zon`) and compiles it with Zig's built-in C compiler.
 
 ```sh
 # Install Zig, using any one of these:
@@ -71,7 +71,7 @@ build.zig            build, run, and test steps
 build.zig.zon        package manifest (requires Zig 0.16.0)
 src/
   main.zig           reads content, parses front matter, writes pages, feed, sitemap, robots.txt
-  markdown.zig       Markdown → HTML, with footnotes turned into Tufte sidenotes
+  markdown.zig       Markdown → HTML via md4c; turns footnotes into Tufte sidenotes and adds heading anchors
   site.css           site-specific styles; maps daisyUI's colors onto Tufte's palette
   vendor/
     tufte.css        tufte-css 1.9.0 with the ET Book @font-face rules removed
@@ -136,26 +136,24 @@ Every undated page except the homepage appears in the navbar, sorted by URL. A *
 
 ## Markdown reference
 
-The renderer supports a deliberately small subset of Markdown. `content/posts/markdown_kitchen_sink.md` uses all of it.
+Markdown is parsed by [md4c](https://github.com/mity/md4c), which follows the [CommonMark spec](https://spec.commonmark.org/). Everything CommonMark supports works, including nested lists, reference-style links, indented code, setext headings and raw HTML. These extensions are enabled too:
 
-| Syntax | Output |
+| Extension | Syntax |
 | --- | --- |
-| `# Heading` … `###### Heading` | `<h2>`–`<h6>` with an `id` for anchor links. **`#` becomes `<h2>`**, because the page title is the only `<h1>`. |
-| blank-line-separated text | `<p>` |
-| `*em*`, `_em_` | `<em>` (an underscore inside a word, as in `snake_case`, is left alone) |
-| `**strong**`, `__strong__` | `<strong>` |
-| `` `code` `` | `<code>` |
-| `[text](https://…)` | link (an optional `"title"` is ignored) |
-| `<https://…>` | autolink |
-| `![alt](/img.png)` | `<img loading="lazy">`. Always write alt text. |
-| `- item`, `* item`, `+ item` | `<ul>` |
-| `1. item`, `1) item` | `<ol>` (the numbers you write are ignored) |
-| `> quote` | `<blockquote>`; a bare `>` line starts a new paragraph |
-| ```` ```lang ```` fences | `<pre><code class="language-lang">`, content escaped |
-| `---`, `***`, `___` | `<hr>` |
-| a line starting with `<` | raw HTML, passed through until the next blank line |
-| inline `<tag>` and `&entity;` | passed through |
-| `\*` | a literal character |
+| Tables | GitHub-style pipe tables, with `:---`, `:---:` and `---:` for alignment |
+| Strikethrough | `~~text~~` |
+| Task lists | `- [ ] todo`, `- [x] done` |
+| Bare URL autolinks | `https://…` without angle brackets |
+| Sidenotes | footnote syntax; see below |
+
+The generator also changes md4c's output in a few ways:
+
+- **`#` becomes `<h2>`**, because the page title is the only `<h1>`. Deeper levels keep their level.
+- **Every heading gets an `id`** for anchor links, made from its text (`## Code blocks` → `id="code-blocks"`). Repeated headings get `-2`, `-3` and so on.
+- **Images get `loading="lazy"`**, including images in raw HTML, so don't add it yourself. Always write alt text.
+- Fenced code blocks get a `language-*` class (from ```` ```zig ````) if you want to add a highlighter.
+
+`content/posts/markdown_kitchen_sink.md` uses every feature.
 
 ### Sidenotes and margin notes
 
@@ -168,7 +166,7 @@ A claim that needs a citation.[^1] A thought with no number.[^mn-aside]
 [^mn-aside]: ![A sparkline](/images/sparkline.svg) Margin notes can hold images too.
 ```
 
-- Notes are numbered automatically, in the order they appear.
+- Notes are numbered automatically, in the order they appear. References inside fenced code blocks are left alone.
 - A note whose id **starts with `mn`** becomes an unnumbered **margin note**, marked ⊕ on mobile.
 - The note text must be on a **single line**. It can contain inline formatting, links and images.
 - Note definitions can go anywhere in the file; the bottom is conventional.
@@ -291,13 +289,13 @@ The script edits files in place, so commit before running it and review the `git
 
 These are deliberate, to keep the generator small:
 
-- Lists can't be nested. Tables, task lists, setext headings (text underlined with `===` or `---`) and reference-style links aren't supported.
 - Footnote and note text must fit on one line.
-- Code blocks aren't syntax-highlighted. Each block gets a `language-*` class if you want to add a highlighter.
-- Two headings with identical text get the same anchor `id`.
+- A footnote reference inside an inline code span (`` `[^1]` ``) is still turned into a sidenote if a note with that id exists. Only fenced code blocks are protected.
+- Code blocks aren't syntax-highlighted.
 - Relative image paths in post bodies stay relative in the feed. Use absolute (`/images/…`) paths.
 
 ## Licenses
 
 - `src/vendor/tufte.css`: [tufte-css](https://github.com/edwardtufte/tufte-css), © 2014 Dave Liepmann, MIT.
 - `src/vendor/daisyui.css`: [daisyUI](https://github.com/saadeghi/daisyui), MIT. The license headers are kept in the file.
+- [md4c](https://github.com/mity/md4c) (fetched at build time, not stored in this repo): © Martin Mitáš, MIT.

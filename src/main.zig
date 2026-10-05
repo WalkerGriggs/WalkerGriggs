@@ -123,6 +123,10 @@ const Gen = struct {
     }
 };
 
+test {
+    _ = md;
+}
+
 pub fn main(init: std.process.Init) !void {
     const arena = init.arena.allocator();
     const io = init.io;
