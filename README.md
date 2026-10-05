@@ -11,9 +11,9 @@
 
 A small static site generator, written in Zig, that builds [walkergriggs.com](https://walkergriggs.com) from a directory of Markdown files.
 
-- **Small.** About 560 lines of Zig and no dependencies beyond the standard library.
+- **Small.** About 590 lines of Zig. It uses only the standard library, plus ImageMagick for images.
 - **Tufte layout.** A main text column with a side column for sidenotes and margin notes. Typography comes from [tufte-css](https://github.com/edwardtufte/tufte-css), and the navbar, badges and footer come from [daisyUI](https://daisyui.com).
-- **Light pages.** All CSS is inlined and the site uses system fonts. There are no web fonts, no JavaScript and no third-party requests. The homepage is about 11 KB uncompressed (about 4 KB gzipped).
+- **Light pages.** All CSS is inlined and the site uses system fonts. There are no web fonts, no JavaScript and no third-party requests. The homepage is about 11 KB uncompressed (about 4 KB gzipped). Photos are resized and re-encoded as WebP.
 - **SEO built in.** Every page gets a canonical URL, description, Open Graph and Twitter tags, and JSON-LD. The site also gets an Atom feed, `sitemap.xml` and `robots.txt`.
 - **Stable URLs.** Posts are published at `/YYYY/MM/DD/<slug>/`, the same paths the site has always used.
 
@@ -35,13 +35,14 @@ A small static site generator, written in Zig, that builds [walkergriggs.com](ht
 
 ## Quick start
 
-You need **Zig 0.16.0**. The generator uses the new `std.Io` APIs, so older versions won't compile it.
+You need **Zig 0.16.0** and **ImageMagick** (its `convert` command, built with WebP support). The generator uses Zig's new `std.Io` APIs, so older Zig versions won't compile it.
 
 ```sh
 # Install Zig, using any one of these:
 #   https://ziglang.org/download/      (official tarballs)
 #   brew install zig                   (macOS)
 #   pip install ziglang==0.16.0        (ships the binary as python -m ziglang)
+# Install ImageMagick: brew install imagemagick  |  apt install imagemagick
 
 zig build run                          # content/ → public/
 python3 -m http.server -d public 8000  # preview at http://localhost:8000
@@ -72,6 +73,7 @@ build.zig.zon        package manifest (requires Zig 0.16.0)
 src/
   main.zig           reads content, parses front matter, writes pages, feed, sitemap, robots.txt
   markdown.zig       Markdown → HTML, with footnotes turned into Tufte sidenotes
+  images.zig         resizes raster images and converts them to WebP with ImageMagick
   site.css           site-specific styles; maps daisyUI's colors onto Tufte's palette
   vendor/
     tufte.css        tufte-css 1.9.0 with the ET Book @font-face rules removed
@@ -85,7 +87,21 @@ public/              generated output (git-ignored)
 The generator walks the content directory recursively:
 
 - Every `.md` file becomes a page.
-- **Every other file is copied as-is** to the same relative path. For example, `content/images/a.png` is published at `/images/a.png`. Put images, favicons, `CNAME` files and similar here. Hidden files such as `.DS_Store` are copied too, so keep the directory clean.
+- **Raster images** (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`) are converted before any page is built. See [Images](#images).
+- **Every other file is copied as-is** to the same relative path. For example, `content/images/diagram.svg` is published at `/images/diagram.svg`. Put SVGs, favicons, `CNAME` files and similar here. Hidden files such as `.DS_Store` are copied too, so keep the directory clean.
+
+### Images
+
+Each raster image goes through one ImageMagick command:
+
+- It is rotated according to its EXIF orientation, and its metadata (EXIF, GPS, color profiles) is removed.
+- It is shrunk to **at most 1350 px wide**, about twice the widest text column, so it stays sharp on high-DPI screens. Smaller images are never enlarged.
+- It is encoded as **lossy WebP at quality 80**. Only the first frame of an animated GIF is kept.
+- The `.webp` is published next to where the original would be. For example, `content/images/a.jpg` becomes `/images/a.webp`. **The original file is not published.**
+
+Reference images by their **original absolute path**, such as `![Alt text](/images/a.jpg)`. The generator rewrites the reference to the `.webp` and adds `width` and `height`, so the page doesn't shift while the image loads. The `image:` front matter key is rewritten the same way. Raw HTML `<img>` tags and relative paths are *not* rewritten; point those at the `.webp` yourself.
+
+To change the size or quality, edit `max_width` or the `argv` line in `src/images.zig`.
 
 ### Front matter
 
@@ -145,7 +161,7 @@ The renderer supports a deliberately small subset of Markdown. `content/posts/ma
 | `` `code` `` | `<code>` |
 | `[text](https://…)` | link (an optional `"title"` is ignored) |
 | `<https://…>` | autolink |
-| `![alt](/img.png)` | `<img loading="lazy">`. Always write alt text. |
+| `![alt](/img.png)` | `<img loading="lazy">`, pointing to the WebP version with `width` and `height`. Always write alt text. |
 | `- item`, `* item`, `+ item` | `<ul>` |
 | `1. item`, `1) item` | `<ol>` (the numbers you write are ignored) |
 | `> quote` | `<blockquote>`; a bare `>` line starts a new paragraph |
@@ -188,6 +204,7 @@ Use raw HTML for anything tufte-css supports that Markdown doesn't, such as full
 | `/index.html` | The homepage intro, then posts grouped by year, newest first |
 | `/YYYY/MM/DD/<slug>/index.html` | Each post |
 | `/<page>/index.html` | Each undated page |
+| `/<path>.webp` | Each raster image, resized and converted |
 | `/tags/index.html` | All tags, with post counts |
 | `/tags/<tag>/index.html` | Posts with that tag |
 | `/index.xml` | Atom feed of the 20 newest posts, with full content (Hugo's feed path) |
@@ -257,6 +274,7 @@ Most Hugo content works unchanged: YAML front matter, `date`, `slug`, `url`, `ta
 - **Shortcodes are not executed.** They appear as literal text. Convert `sidenote` and `marginnote` shortcodes to footnotes with the script below, then find any others with `grep -rhoE '\{\{[<%] *[a-z]+' content | sort | uniq -c`.
 - **TOML front matter (`+++`) is not supported.** Convert it to YAML.
 - **Files in `static/` are not moved to the site root.** Move them into `content/` at the path you want them served from.
+- **Image references** in raw HTML or shortcodes must point at the `.webp` file.
 
 <details>
 <summary><code>shortcodes_to_footnotes.py</code></summary>
@@ -293,7 +311,8 @@ These are deliberate, to keep the generator small:
 - Footnote and note text must fit on one line.
 - Code blocks aren't syntax-highlighted. Each block gets a `language-*` class if you want to add a highlighter.
 - Two headings with identical text get the same anchor `id`.
-- Relative image paths in post bodies stay relative in the feed. Use absolute (`/images/…`) paths.
+- Image references must use absolute paths (`/images/…`). Relative paths aren't converted, and they break in the feed.
+- Each image is produced at one size; there's no `srcset`. Images are converted again on every build.
 
 ## Licenses
 

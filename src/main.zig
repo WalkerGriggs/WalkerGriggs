@@ -2,6 +2,7 @@
 //! Usage: `zig build run -- <content-dir>`
 const std = @import("std");
 const md = @import("markdown.zig");
+const images = @import("images.zig");
 const Io = std.Io;
 const attr = md.attr;
 
@@ -136,15 +137,26 @@ pub fn main(init: std.process.Init) !void {
     var g: Gen = .{ .arena = arena, .io = io, .out = try Io.Dir.cwd().createDirPathOpen(io, args[2], .{}), .nav = &.{} };
     defer g.out.close(io);
 
-    // Markdown becomes pages; everything else (images, favicons, …) is copied as-is.
-    var pages: std.ArrayList(Page) = .empty;
+    // Raster images become resized WebP; other non-Markdown files are copied as-is.
+    // Markdown is parsed afterwards so image references can point at the converted files.
+    var sources: std.ArrayList(struct { []const u8, []const u8 }) = .empty;
+    var converted: md.Images = .empty;
     var walker = try src.walk(arena);
     while (try walker.next(io)) |e| {
         if (e.kind != .file) continue;
         const key = try arena.dupe(u8, e.path);
-        const data = try src.readFileAlloc(io, key, arena, .unlimited);
-        if (!std.mem.endsWith(u8, key, ".md")) try g.write(key, data) else if (try parse(arena, key, data)) |p| try pages.append(arena, p);
+        if (images.isRaster(key)) {
+            const webp = try std.fmt.allocPrint(arena, "{s}.webp", .{key[0 .. key.len - std.fs.path.extension(key).len]});
+            if (std.fs.path.dirname(key)) |d| try g.out.createDirPath(io, d);
+            const w, const h = try images.toWebp(arena, io, try std.fs.path.join(arena, &.{ args[1], key }), try std.fs.path.join(arena, &.{ args[2], webp }));
+            try converted.put(arena, try std.fmt.allocPrint(arena, "/{s}", .{key}), .{ .src = try std.fmt.allocPrint(arena, "/{s}", .{webp}), .w = w, .h = h });
+        } else {
+            const data = try src.readFileAlloc(io, key, arena, .unlimited);
+            if (std.mem.endsWith(u8, key, ".md")) try sources.append(arena, .{ key, data }) else try g.write(key, data);
+        }
     }
+    var pages: std.ArrayList(Page) = .empty;
+    for (sources.items) |s| if (try parse(arena, s[0], s[1], &converted)) |p| try pages.append(arena, p);
     std.mem.sort(Page, pages.items, {}, struct {
         fn newer(_: void, a: Page, b: Page) bool {
             return std.mem.order(u8, a.date, b.date) == .gt or (a.date.len == 0 and b.date.len == 0 and std.mem.order(u8, a.url, b.url) == .lt);
@@ -225,7 +237,7 @@ pub fn main(init: std.process.Init) !void {
 
 /// Front matter (`---` YAML subset: `key: value`, `[a, b]` and `- item` lists) + Markdown → Page.
 /// Returns null for drafts.
-fn parse(arena: std.mem.Allocator, key: []const u8, src: []const u8) !?Page {
+fn parse(arena: std.mem.Allocator, key: []const u8, src: []const u8, converted: *const md.Images) !?Page {
     var meta: std.StringHashMapUnmanaged([]const u8) = .empty;
     var body = src;
     if (std.mem.startsWith(u8, src, "---")) if (std.mem.indexOf(u8, src[3..], "\n---")) |end| {
@@ -261,7 +273,7 @@ fn parse(arena: std.mem.Allocator, key: []const u8, src: []const u8) !?Page {
     var it = std.mem.tokenizeAny(u8, meta.get("tags") orelse "", "[],");
     while (it.next()) |t| if (unquote(t).len > 0) try tags.append(arena, unquote(t));
 
-    const doc = try md.render(arena, body);
+    const doc = try md.render(arena, body, converted);
     const summary = if (doc.excerpt.len <= 160) doc.excerpt else try std.fmt.allocPrint(arena, "{s}…", .{doc.excerpt[0 .. std.mem.lastIndexOfScalar(u8, doc.excerpt[0..157], ' ') orelse 157]});
     return .{
         .title = meta.get("title") orelse stem,
@@ -269,7 +281,7 @@ fn parse(arena: std.mem.Allocator, key: []const u8, src: []const u8) !?Page {
         .description = meta.get("description") orelse meta.get("summary") orelse if (summary.len > 0) summary else site.description,
         .date = date,
         .lastmod = meta.get("lastmod") orelse date,
-        .image = meta.get("image") orelse "",
+        .image = if (meta.get("image")) |i| if (converted.get(i)) |c| c.src else i else "",
         .tags = tags.items,
         .html = doc.html,
     };
