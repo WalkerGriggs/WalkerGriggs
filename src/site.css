@@ -1,0 +1,15 @@
+/* tufte.css owns typography and the 55% text / margin-note grid; this maps daisyUI's tokens onto Tufte's palette. */
+:root { --color-base-100: #fffff8; --color-base-200: #f2f2e8; --color-base-content: #111; }
+@media (prefers-color-scheme: dark) { :root { color-scheme: dark; --color-base-100: #151515; --color-base-200: #222; --color-base-content: #ddd; } }
+body > .navbar { padding: 2rem 0 0; min-height: 0; gap: 2rem; flex-wrap: wrap; }
+.navbar .site-title { font-size: 1.8rem; font-style: italic; }
+.navbar nav { display: flex; gap: 1.5rem; font-size: 1.2rem; }
+.navbar a, .footer a, a.badge { text-decoration: none; }
+ul.posts { list-style: none; width: 55%; padding: 0; -webkit-padding-start: 0; }
+ul.posts li { display: flex; justify-content: space-between; gap: 1rem; }
+ul.posts time { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tags { display: flex; flex-wrap: wrap; gap: .5rem; width: 55%; }
+body > .footer { width: 55%; padding: 0 0 4rem; font-size: 1.1rem; }
+body > .footer > p { display: block; }
+.sidenote img, .marginnote img { display: block; margin-top: .3rem; }
+@media (max-width: 760px) { ul.posts, .tags, body > .footer { width: 100%; } }
