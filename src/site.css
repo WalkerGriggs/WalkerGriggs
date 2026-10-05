@@ -1,15 +1,24 @@
-/* tufte.css owns typography and the 55% text / margin-note grid; this maps daisyUI's tokens onto Tufte's palette. */
-:root { --color-base-100: #fffff8; --color-base-200: #f2f2e8; --color-base-content: #111; }
-@media (prefers-color-scheme: dark) { :root { color-scheme: dark; --color-base-100: #151515; --color-base-200: #222; --color-base-content: #ddd; } }
-body > .navbar { padding: 2rem 0 0; min-height: 0; gap: 2rem; flex-wrap: wrap; }
-.navbar .site-title { font-size: 1.8rem; font-style: italic; }
-.navbar nav { display: flex; gap: 1.5rem; font-size: 1.2rem; }
-.navbar a, .footer a { text-decoration: none; }
-ul.posts { list-style: none; width: 55%; padding: 0; -webkit-padding-start: 0; }
-ul.posts li { display: flex; justify-content: space-between; gap: 1rem; }
-ul.posts time { white-space: nowrap; font-variant-numeric: tabular-nums; }
-body > .footer { width: 55%; padding: 0 0 4rem; font-size: 1.1rem; }
-body > .footer > p { display: block; }
+/* tufte.css owns typography and the 55% text / margin-note grid; this maps daisyUI's tokens onto Tufte's palette and lays out the header, post list, and footer like walkergriggs.com. */
+:root { --color-base-100: #fffff8; --color-base-200: #f2f2e8; --color-base-content: #111; --rule: #e0e0d6; --muted: #6b6b64; }
+@media (prefers-color-scheme: dark) { :root { color-scheme: dark; --color-base-100: #151515; --color-base-200: #222; --color-base-content: #ddd; --rule: #333; --muted: #999; } }
+body > .navbar, body > .footer, .page-list { width: 55%; padding: 0; }
+.content > h2, .content > h3 { width: 55%; }
+body > .navbar { justify-content: space-between; min-height: 0; margin-top: 3.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--rule); }
+.navbar .logo { display: block; height: 38px; width: auto; }
+.navbar ul { display: flex; gap: 1.4rem; margin: 0; padding: 0; list-style: none; font-size: 1.15rem; font-style: italic; }
+.navbar li { margin: 0; }
+.navbar a, .footer a, .page-list a { text-decoration: none; }
+main > article { padding-top: 2rem; }
+h1.hero { margin: 0 0 .25rem; font-size: 2rem; line-height: 1.35; }
+.post-header + .content { padding-top: 0; }
+.date, .label { color: var(--muted); font-size: 1.1rem; font-style: italic; }
+.page-list { list-style: none; -webkit-padding-start: 0; }
+.page-list li { display: flex; align-items: baseline; gap: 12px; margin-bottom: .6rem; }
+.page-list .label { flex: 0 0 52px; }
+.page-list a { flex: auto; }
+.page-list .date { white-space: nowrap; font-variant-numeric: oldstyle-nums; }
+body > .footer { margin: 4rem 0 3.5rem; padding-top: 1rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: 1.1rem; font-style: italic; }
+body > .footer > p { display: block; margin: 0; }
 .sidenote img, .marginnote img { display: block; margin-top: .3rem; }
 .task-list-item { list-style: none; }
-@media (max-width: 760px) { ul.posts, body > .footer { width: 100%; } }
+@media (max-width: 760px) { body > .navbar, body > .footer, .page-list, .content > h2, .content > h3 { width: 100%; } }

@@ -4,6 +4,7 @@ date: 2026-10-05
 lastmod: 2026-10-05T12:00:00Z
 description: Every Markdown feature the generator supports, rendered in Tufte style with sidenotes, margin notes, images, lists, and code.
 image: /images/landscape.svg
+categories: ["essays"]
 ---
 This post exercises every feature of the generator. Its search and social description comes from the `description` front matter, so every post should have one.[^intro]
 

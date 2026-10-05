@@ -100,14 +100,16 @@ date: 2024-10-16
 lastmod: 2024-11-02T09:30:00-04:00
 description: What's actually inside a PSSH box, and why every DRM system reads it differently.
 image: /images/pssh-card.png
+categories: [talks]
 ---
 Your post starts here.
 ```
 
 | Key | Default | Purpose |
 | --- | --- | --- |
-| `title` | file name | Page title, `<h1>`, and the title used in the feed and in social previews. |
-| `date` | none | `YYYY-MM-DD` or full ISO 8601. **A page with a date is a post.** Posts get a dated URL and appear on the homepage and in the feed. |
+| `title` | file name | Page title (the `<h1>`), and the title used in the feed and in social previews. |
+| `date` | none | `YYYY-MM-DD` or full ISO 8601. **Dated pages are listed under Writing (`/posts/`) and in the feed**, and show their date as `YYYY/MM/DD` under the title. |
+| `categories` | none | The first category sets the label in the Writing list: `essays` → *essay*, `talks` → *talk*, `recently` → *micro*; any other value is shown as-is. It also sets `article:section`. |
 | `lastmod` | `date` | Last-modified date for the feed, sitemap, and JSON-LD. |
 | `description` | the site description | Meta and social description. **Write one for every page**; nothing is derived from the body. Aim for under 160 characters. |
 | `slug` | file name | The last part of a post's URL. |
@@ -122,14 +124,19 @@ If you write a date with a time, include a timezone (`2024-10-16T09:00:00-04:00`
 Each page's path is chosen by the first rule that applies:
 
 1. **`url:` in front matter.** Used exactly as written, with a leading `/` added if it's missing. A path with no file extension gets a trailing slash, so `/about` becomes `/about/` and is written to `about/index.html`. A path with an extension, such as `/feed.html`, is written as that file.
-2. **Posts** (pages with a `date`) go to `/YYYY/MM/DD/<slug>/`. The slug is the `slug:` value if set, otherwise the file name. For example, `posts/pipewire_in_docker.md` dated `2022-12-03` goes to `/2022/12/03/pipewire_in_docker/`. The directory a post sits in doesn't affect its URL.
-3. **Pages** (no `date`) mirror their path in `content/`. `about.md` goes to `/about/`, and `projects/index.md` goes to `/projects/`.
+2. **Dated files in `posts/`** go to `/YYYY/MM/DD/<slug>/`. The slug is the `slug:` value if set, otherwise the file name. For example, `posts/pipewire_in_docker.md` dated `2022-12-03` goes to `/2022/12/03/pipewire_in_docker/`.
+3. **Everything else** mirrors its path in `content/`, even when it has a date. For example, `recently/recently_2025_03_25.md` goes to `/recently/recently_2025_03_25/`, and `projects/index.md` goes to `/projects/`.
 
-`index.md` and `_index.md` stand for their directory, as in Hugo. A top-level `_index.md` (URL `/`) is the **homepage intro**: its body is shown above the list of posts.
+`index.md` and `_index.md` stand for their directory, as in Hugo. The top-level `_index.md` (URL `/`) is the **homepage**: its body is the whole page.
 
-### Navigation
+### Layout
 
-Every undated page except the homepage appears in the navbar, sorted by URL.
+Every page shares the same frame, matching the live site:
+
+- **Header:** the logo (`/apple-touch-icon.webp`), then the fixed navigation **Home.** (`/`), **Writing.** (`/posts/`) and **Feed.** (`/index.xml`).
+- **Footer:** the current year and the `email` from the site config.
+
+Put the icon files the page head links to in `content/`, so they're copied to the site root: `favicon.ico`, `favicon-32x32.webp`, `apple-touch-icon.webp` and `site.webmanifest`, plus any icons the manifest lists.
 
 ## Markdown reference
 
@@ -182,9 +189,10 @@ Use raw HTML for anything tufte-css supports that Markdown doesn't, such as full
 
 | Path | Contents |
 | --- | --- |
-| `/index.html` | The homepage intro, then posts grouped by year, newest first |
-| `/YYYY/MM/DD/<slug>/index.html` | Each post |
-| `/<page>/index.html` | Each undated page |
+| `/index.html` | The homepage, from `_index.md` |
+| `/posts/index.html` | Writing: every dated page, newest first, with its label and date |
+| `/YYYY/MM/DD/<slug>/index.html` | Each dated file in `posts/` |
+| `/<path>/index.html` | Every other page, such as `/recently/<name>/` |
 | `/index.xml` | Atom feed of the 20 newest posts, with full content (Hugo's feed path) |
 | `/sitemap.xml` | Every indexable page, with `lastmod` |
 | `/robots.txt` | Allows all crawlers and points to the sitemap |
@@ -221,6 +229,7 @@ const site = .{
     .url = "https://walkergriggs.com",     // canonical origin, without a trailing slash
     .title = "Walker Griggs",
     .description = "…",                    // default meta description
+    .email = "hello@walkergriggs.com",     // shown in the footer
     .twitter = "@WalkerGriggs",
     .same_as = [_][]const u8{ "https://github.com/WalkerGriggs", "https://x.com/WalkerGriggs" },
 };
@@ -247,7 +256,10 @@ Once the site is live, submit `https://walkergriggs.com/sitemap.xml` in Google S
 
 ## Migrating from Hugo
 
-Most Hugo content works unchanged: YAML front matter, `date`, `slug`, `url`, `draft`, `_index.md` and the `/index.xml` feed path are all supported. Differences:
+Most Hugo content works unchanged: YAML front matter, `date`, `slug`, `url`, `draft`, `categories`, `_index.md`, the `/YYYY/MM/DD/<file>/` and `/recently/<file>/` permalinks, and the `/index.xml` feed path are all supported. Differences:
+
+- **There are no section or category pages.** `/recently/` and `/categories/…/` aren't generated; on the current site they only duplicated `/posts/`. Their entries are in the current sitemap, so expect Search Console to report them as 404 for a while.
+- **The feed is Atom, not RSS 2.0.** It's at the same URL, and feed readers handle the switch.
 
 - **Shortcodes are not executed.** They appear as literal text. Convert `sidenote` and `marginnote` shortcodes to footnotes with the script below, then find any others with `grep -rhoE '\{\{[<%] *[a-z]+' content | sort | uniq -c`.
 - **TOML front matter (`+++`) is not supported.** Convert it to YAML.
