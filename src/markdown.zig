@@ -5,13 +5,10 @@ const std = @import("std");
 const Writer = std.Io.Writer;
 
 pub const Doc = struct { html: []const u8, excerpt: []const u8 };
-/// Converted images by original site path (`/images/a.png`).
-pub const Images = std.StringHashMapUnmanaged(@import("images.zig").Image);
 
 const Renderer = struct {
     arena: std.mem.Allocator,
     w: *Writer,
-    images: *const Images,
     notes: std.StringHashMapUnmanaged([]const u8) = .empty,
     note_count: usize = 0,
     buf: std.ArrayList(u8) = .empty, // text of the open paragraph or list item
@@ -72,10 +69,7 @@ const Renderer = struct {
                 try w.writeAll("</span>");
             } else if (link(rest, c == '!')) |l| {
                 if (c == '!') {
-                    const img = r.images.get(l.href);
-                    try w.print("<img src=\"{f}\" alt=\"{f}\" loading=\"lazy\"", .{ attr(if (img) |m| m.src else l.href), attr(l.text) });
-                    if (img) |m| try w.print(" width=\"{s}\" height=\"{s}\"", .{ m.w, m.h });
-                    try w.writeByte('>');
+                    try w.print("<img src=\"{f}\" alt=\"{f}\" loading=\"lazy\">", .{ attr(l.href), attr(l.text) });
                 } else {
                     try w.print("<a href=\"{f}\">", .{attr(l.href)});
                     try r.inline_(w, l.text, notes);
@@ -106,9 +100,9 @@ const Renderer = struct {
     }
 };
 
-pub fn render(arena: std.mem.Allocator, src: []const u8, images: *const Images) !Doc {
+pub fn render(arena: std.mem.Allocator, src: []const u8) !Doc {
     var out: Writer.Allocating = .init(arena);
-    var r: Renderer = .{ .arena = arena, .w = &out.writer, .images = images };
+    var r: Renderer = .{ .arena = arena, .w = &out.writer };
     var lines = std.mem.splitScalar(u8, src, '\n');
     while (lines.next()) |line| if (std.mem.startsWith(u8, line, "[^")) if (std.mem.indexOf(u8, line, "]:")) |e|
         try r.notes.put(arena, line[2..e], std.mem.trim(u8, line[e + 2 ..], " \t\r"));
@@ -260,7 +254,7 @@ test render {
         \\```
         \\
         \\[^1]: A _side_ note.
-    , &.empty);
+    );
     try std.testing.expectEqualStrings(
         \\<h2 id="intro">Intro</h2>
         \\<p>Hello <em>world</em> &amp; <strong>friends</strong><label for="sn-1" class="margin-toggle sidenote-number"></label><input type="checkbox" id="sn-1" class="margin-toggle"/><span class="sidenote">A <em>side</em> note.</span> with <code>a&lt;b</code> and <a href="https://x.y">a link</a>.</p>

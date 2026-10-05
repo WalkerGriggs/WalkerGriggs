@@ -3,7 +3,7 @@ title: "A Markdown kitchen sink"
 date: 2026-10-05
 lastmod: 2026-10-05T12:00:00Z
 description: Every Markdown feature the generator supports, rendered in Tufte style with sidenotes, margin notes, images, lists, and code.
-image: /images/plasma.jpg
+image: /images/landscape.svg
 tags:
   - meta
   - markdown
@@ -41,17 +41,13 @@ Numbered sidenotes use footnote syntax.[^numbered] Unnumbered margin notes use a
 
 You can also put a picture in a margin note.[^mn-figure]
 
-[^mn-figure]: ![A plasma fractal thumbnail](/images/plasma.jpg) Margin figures sit beside the text they describe.
+[^mn-figure]: ![A small landscape](/images/landscape.svg) Margin figures sit beside the text they describe.
 
 ## Images
 
-![A colorful plasma fractal](/images/plasma.jpg)
-
-Raster images (PNG, JPEG, GIF, WebP) are resized to at most 1350 px wide, re-encoded as WebP, and given `width` and `height` so the page doesn't shift while they load. This one started as a 2400 px JPEG.
-
 ![A flat landscape with hills and a sun](/images/landscape.svg)
 
-SVGs are already small and resolution-independent, so they're copied as-is. Every image is lazy-loaded and must carry alt text.
+Images are lazy-loaded and must carry alt text for accessibility and search.
 
 ## Lists
 
