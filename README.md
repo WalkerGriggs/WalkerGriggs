@@ -11,7 +11,7 @@
 
 A small static site generator, written in Zig, that builds [walkergriggs.com](https://walkergriggs.com) from a directory of Markdown files.
 
-- **Small.** About 590 lines of Zig. It uses only the standard library, plus ImageMagick for images.
+- **Small.** About 600 lines of Zig. It uses only the standard library, plus ImageMagick for images.
 - **Tufte layout.** A main text column with a side column for sidenotes and margin notes. Typography comes from [tufte-css](https://github.com/edwardtufte/tufte-css), and the navbar, badges and footer come from [daisyUI](https://daisyui.com).
 - **Light pages.** All CSS is inlined and the site uses system fonts. There are no web fonts, no JavaScript and no third-party requests. The homepage is about 11 KB uncompressed (about 4 KB gzipped). Photos are resized and re-encoded as WebP.
 - **SEO built in.** Every page gets a canonical URL, description, Open Graph and Twitter tags, and JSON-LD. The site also gets an Atom feed, `sitemap.xml` and `robots.txt`.
